@@ -57,47 +57,84 @@ Accuracy is a trap here. At a 9.0% base rate, saying "no" to everyone is
   but the actual positive rate inside those bands stays flat near the base rate. Its confidence
   orders the queue; it does not certify the answer.
 
-## Read the head-to-head carefully (an earlier version of this repo got it wrong)
+## Read this before the head-to-head table (an earlier version of this repo got it wrong, twice)
 
-The first version of this README claimed Jev "beat the chat LLM". That was measured at each
-model's *own* threshold, which is not a skill comparison: a model that flags more people gets
-more recall and less precision no matter how good it is. Jev flags
-32% of people, the chat LLM
-45%. Compared at *matched*
-coverage (`src/analyse_arms.py`, full output in `results/arm-comparison.md`):
+The first version claimed Jev "beat the chat LLM". That compared each model at its *own*
+threshold, which measures how many people each decided to flag, not skill. The second version
+over-corrected and claimed the two were "tied on skill". Both are wrong, and the second error is
+more interesting than the first.
 
-| share of people flagged | Jev precision | chat LLM precision | winner |
-|---|---|---|---|
-| 5% | 35.2% | 37.2% | chat LLM |
-| 10% | 28.0% | 27.8% | Jev |
-| 15% | 26.1% | 25.3% | Jev |
-| 20% | 23.3% | 23.6% | chat LLM |
-| 30% | 20.6% | 20.8% | chat LLM |
-| 40% | 17.8% | 18.1% | chat LLM |
-| 50% | 15.2% | 15.9% | chat LLM |
+Everything below is from `src/rigour_check.py` (2,000-resample bootstrap, 95% CIs) with the full
+output in `results/rigour-review.md`.
 
-**The two models are functionally tied.** Every margin is between 0.2 and 2 points on 5,000 rows
-holding 449 positives. Inside narrow age bands they are indistinguishable: AUC 0.764 vs 0.766,
-0.803 vs 0.805, 0.715 vs 0.706, 0.704 vs 0.701. The AUC difference that looks like a DeepSeek win
-(0.7935 vs 0.7725) is the same noise seen through a different lens.
+### What survives scrutiny
 
-Three findings that matter more than the ranking tie:
+**1. The chat LLM's ranking is genuinely better, but by a small margin.**
+AUC 0.7935 vs 0.7725, difference **+0.0210, 95% CI [+0.0106, +0.0319]**. The CI excludes
+zero, so this is real, not noise.
 
-1. **Almost all of the signal is age.** Age band used as a bare score gets **AUC 0.7215** on its
-   own. Both models add roughly 0.05 of AUC on top of it and then stop. The learnable structure in
-   21 survey answers is thin, which is the real reason neither zero-shot arm is impressive.
-2. **The chat LLM's probabilities are better calibrated than Jev's.** Stated versus actual:
-   DeepSeek says 30-50% and 31.5% of those people are positive; it over-states by 1.36x overall.
-   Jev says 90-100% and 28.8% are positive, over-stating by **3.05x**. The usual claim that a
-   decision model hands you a calibrated number and an LLM does not is **false on this task**.
-3. **The chat LLM's extra recall is noise.** The 670 people *only* the LLM flags are **9.0%**
-   positive, exactly the base rate. Its 84.2% recall against Jev's 70.8% is a lower threshold, not
-   better detection: catching those 60 extra real cases cost 610 false positives.
+**2. At any practical operating point you cannot see that difference.** Matched-coverage precision
+differences at 5%, 10%, 20% and 30% flagged are +2.8, -0.2, +0.3 and +0.2 points, and **every one
+of those CIs spans zero**. AUC detects a consistent small shift across the whole ranking; precision
+at a fixed cut with 449 positives is too coarse to resolve it.
 
-So the honest summary is that on this task the two arms are interchangeable on skill, the LLM is
-better calibrated, and Jev's advantages are operational: 2.8x cheaper,
-2.5x faster, fully typed, with an auditable reason code and
-no prompt to drift. The trained logistic regression beats both.
+**3. The decisive finding is calibration, and it is not flattering to Jev.**
+
+| | Brier | reliability | resolution | Brier skill vs base rate |
+|---|---|---|---|---|
+| Jev | 0.1892 | 0.1147 | 0.0072 | **-1.315** |
+| chat LLM | 0.0746 | 0.0012 | 0.0071 | **+0.087** |
+
+The two have **essentially identical resolution** (0.0072 vs 0.0071): they make the same quality of
+distinction. They differ entirely in reliability. Jev's stated probabilities are so far from the
+truth that a negative skill score of -1.315 means you would do better ignoring them and just
+quoting the base rate. A decision model handing you a number you cannot use is worse than one
+that abstains.
+
+**4. Jev is only miscalibrated where it is confident.** In the range where both models operate
+(stated probability <= 0.42, which covers 67.7% of Jev's answers) Jev's mean stated is 0.028
+against an actual 0.037, so it slightly *under*-states. All of its overconfidence is concentrated
+in the "elevated" and "high" tail it assigns to a third of respondents.
+
+**5. Neither model is "just reading age".** Age band alone scores AUC 0.7215, which is a strong
+single predictor, but *within* narrow age bands, where age is nearly constant, both models still
+score 0.70 to 0.80. That is real discrimination among people the same age. An earlier version of
+this README claimed "almost all the signal is age"; pooling across age bands inflates the apparent
+performance of any age-correlated score, and the within-band numbers refute the claim.
+
+**6. A trained model extracts about 2.4x more non-age signal than Jev does.** Logistic regression
+on age band alone: AUC 0.7215. On all 21 fields: 0.8417, so the 20 non-age fields are worth
+**+0.1203** when a model can weight them jointly. Jev's zero-shot reading captures +0.0510 of that
+(about 42%), the chat LLM +0.0720 (about 60%).
+
+### What did not survive
+
+- **"The two are tied on skill."** Wrong. The AUC gap is real (CI excludes zero). It is small
+  enough to be invisible at any single cut, but it is not zero.
+- **"Almost all the signal is age."** Wrong, see point 5.
+- **"Jev over-states by 3.05x."** True as a global average, misleading as a description. It is
+  driven by the third of rows Jev puts in its high tail; elsewhere it is well behaved.
+- **"The v3 contract ranks best."** On 1,000 rows with 92 positives the v1/v2/v3 AUCs are 0.7864,
+  0.7925 and 0.8059, and **every pairwise CI spans zero**. The contract comparison cannot be
+  resolved at that sample size and should not have been stated as a result.
+
+### Limitations a reviewer should hold against this work
+
+- **Complete-case deletion.** Deriving the cohort dropped 42.5% of raw records. Refusals and
+  don't-knows are not missing at random, so 253,680 complete responses have a base
+  rate of 9.4%, which is a property of this sample, not of US adults.
+- **No survey weights.** BRFSS is a weighted sample. Applying none means every rate here is
+  unweighted and not a population estimate.
+- **The label is prevalence, not risk.** `_MICHD` records whether someone has *ever been told*
+  they had a heart attack or CHD. It depends on whether they saw a doctor. Calling this a
+  "heart risk" benchmark is loose; it is a "has been told" benchmark.
+- **No pre-registration.** Five arms and many metrics were explored, so some differences will look
+  real by chance. Only the calibration result is large enough to be safe from that criticism.
+
+So the honest summary: **the chat LLM ranks slightly better, Jev's probabilities are unusable
+while the LLM's are usable, and both are mediocre next to a trained model.** Jev's real advantages
+are operational, 2.8x cheaper and
+2.5x faster with a checkable reason code.
 
 ## The decision contract matters as much as the model
 
@@ -106,12 +143,20 @@ Same model, same 1,000 respondents, three ways of asking:
 | contract | asks for | accuracy | AUC | what happened |
 |---|---|---|---|---|
 | v1 | one of four described bands | 74.0% | 0.7864 | flags 30% of people against a 9% rate |
-| v2 | bands rewritten around the measured base rate | 65.0% | 0.7925 | worse,  it flags 40%. It follows the words, not the percentages |
-| v3 | the probability itself, as a typed judgement | 42.0% | 0.8059 | ranks best, but every answer lands between 8% and 19% |
+| v2 | bands rewritten around the measured base rate | 65.0% | 0.7925 | worse, it flags 40%. It follows the words, not the percentages |
+| v3 | the probability itself, as a typed judgement | 42.0% | 0.8059 | highest AUC, but every answer lands between 8% and 19% |
 
-v3 ranks best and is the most useful shape,  but only if you stop reading the number as a
-probability. Set the cut-off in code: at 0.15 it flags 8.4% of respondents at 40.5% precision,
-a 4.4x lift over the base rate. The model judges; the cut-off is yours.
+v3's AUC is nominally the highest (0.8059 against 0.7864 for v1) **but every pairwise bootstrap CI
+spans zero at this sample size**, so that ordering is not established. What *is* solid is the
+shape: v3's number is a ranking score, not a probability. Every one of its answers landed between
+0.08 and 0.19, so reading it as "a 15% chance" is meaningless. The cut-off therefore belongs in
+your code, where it can be tuned and reported: at 0.15 it flags 8.4% of respondents at 40.5%
+precision, a 4.4x lift over the base rate. The model judges, the cut-off is yours.
+
+The one contract finding that is safe to state is about over-assignment, which is a rate, not an
+AUC: v1 flags 30% of respondents against a 9% base rate and v2, rewritten to anchor the bands on
+the measured base rate, flags **40%**. The model follows the words in the criteria, not the
+percentages printed beside them.
 
 ## Two bugs worth reading about
 

@@ -165,13 +165,17 @@ its red and orange beads.</p>
         <td class="num good">0.38s</td></tr>
   </table>
   <p class="muted" style="font-size:13px">Read this table at each model's own threshold and it
-  looks like a Jev win. Compare them at <b>matched coverage</b> instead and they are tied: at 5%,
-  10%, 15%, 20%, 30%, 40% and 50% of people flagged, their precisions differ by 0.2 to 2 points.
-  Inside narrow age bands they score the same AUC to two decimals. The real differences are that
-  the chat LLM's numbers are better calibrated (1.36x over-stated against Jev's 3.05x), that the
-  extra people it flags are <b>9.0% positive, exactly the base rate</b>, and that Jev is cheaper,
-  faster and fully typed. Age band alone scores AUC 0.7215, so both arms are mostly recovering age.
-  Full working in <span style="font-family:ui-monospace,monospace">results/arm-comparison.md</span>.</p>
+  looks like a Jev win: Jev flags 31.5% of people, the chat LLM flags 44.9%. That is arithmetic,
+  not skill. The real answer needs a bootstrap (2,000 resamples, in
+  <span style="font-family:ui-monospace,monospace">results/rigour-review.md</span>):
+  <b>the chat LLM's ranking is genuinely better</b> (AUC difference +0.021, 95% CI [+0.011, +0.032],
+  excludes zero) <b>but the gap is invisible at any single cut</b> (matched-coverage precision
+  differences of +2.8, -0.2, +0.3, +0.2 points, every CI spanning zero).
+  <br><br>
+  The finding that matters is calibration. Same resolution (0.0072 vs 0.0071) and utterly different
+  reliability (0.1147 vs 0.0012): Jev's probabilities score a <b>Brier skill of -1.32</b>, meaning
+  you would do better quoting the base rate on every row. The chat LLM's score +0.087. On this task
+  the decision model's number is not a probability of disease, and the general-purpose model's is.</p>
 </div>
 
 <div class="panel">
@@ -187,12 +191,12 @@ its red and orange beads.</p>
     <tr><td>v2</td><td>bands rewritten around the base rate</td><td class="num">65.0%</td>
         <td class="num">0.793</td><td>worse: it flags 40%. It follows the words, not the percentages</td></tr>
     <tr><td>v3</td><td>the probability itself, as a typed judgement</td><td class="num">42.0%</td>
-        <td class="num good">0.8059</td><td>ranks best, but every answer lands between 8% and 19%</td></tr>
+        <td class="num good">0.8059</td><td>highest AUC, but every answer lands between 8% and 19%</td></tr>
   </table>
-  <p class="muted" style="font-size:13px;margin-top:10px">The reading: the number Jev returns is a
-  ranking signal, not a probability you can quote. Its cut-off belongs in your code, where it can
-  be tuned and reported. Set at 0.15 on the v3 contract it flags 8.4% of respondents at 40.5%
-  precision, a 4.4x lift over the base rate.</p>
+  <p class="muted" style="font-size:13px;margin-top:10px">v3's AUC is nominally the highest, but
+  every pairwise bootstrap CI spans zero at 1,000 rows, so that ordering is not established. What is
+  solid is the shape: v3's number is a ranking score, not a probability, since every one of its
+  answers landed between 8% and 19%. The cut-off belongs in your code.</p>
 </div>
 
 <div class="credits">

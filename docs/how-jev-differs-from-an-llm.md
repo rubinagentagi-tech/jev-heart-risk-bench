@@ -16,25 +16,39 @@ supported by this run. What is different is the contract: Jev cannot return anyt
 the LLM, the structure is a request you hope is honoured; with Jev it is the only thing the
 endpoint can emit.
 
-## 2. The LLM's numbers are better calibrated; Jev's have more range
+## 2. The LLM's number is a probability; Jev's is not
+
+This is the finding that survived every check. Brier score with its Murphy decomposition, on the
+same 5,000 rows:
+
+| | Brier | reliability | resolution | skill vs base rate |
+|---|---|---|---|---|
+| Jev | 0.1892 | 0.1147 | 0.0072 | **-1.315** |
+| chat LLM | 0.0746 | 0.0012 | 0.0071 | **+0.087** |
+
+Read the middle two columns. **Resolution is identical** (0.0072 vs 0.0071): the two models make
+the same quality of distinction, which is exactly why their matched-coverage precision curves sit
+on top of each other. They differ in **reliability** (0.1147 vs 0.0012).
+
+A skill score of **-1.315** means Jev's probabilities are worse than ignoring the model and
+quoting the base rate on every row. Its number is closer to a confidence in the label it picked
+than a probability the person is sick. The chat LLM's number, by contrast, is usable as a
+probability.
+
+The damage is localised, which makes it more interesting rather than less. Restrict to the range
+where both models operate (stated probability <= 0.42, covering 67.7% of Jev's answers) and Jev's
+mean stated is 0.028 against an actual 0.037: it is fine. All of the overconfidence lives in the
+"elevated" and "high" tail, where it attaches 0.9 to 0.99 confidence to a group that is 28.8%
+positive.
 
 | | 5th pct | median | 95th pct | share above 0.5 | mean stated | truth |
 |---|---|---|---|---|---|---|
 | Jev | 0.0 | 0.02 | 0.94 | 31.5% | 0.274 | 0.090 |
 | chat LLM | 0.02 | 0.09 | 0.32 | 0.0% | 0.122 | 0.090 |
 
-Jev uses the whole range and the chat LLM stays inside a narrow one, never once saying a person
-is more likely than not. That much is true, and it looks like a win until you check what the
-numbers mean:
-
-| model | says 30-50% | those are actually positive | says 90-100% | those are actually positive | over-stated by |
-|---|---|---|---|---|---|
-| Jev | 77 people | 9.1% | 466 people | 28.8% | **3.05x** |
-| chat LLM | 384 people | 31.5% | 0 people | n/a | **1.36x** |
-
-**The chat LLM's probabilities are the better calibrated of the two.** The common claim that a
-decision model hands you a trustworthy number and an LLM does not is false on this task. Jev's
-range is confidence about which label it picked, not a probability that the person is sick.
+Note also that the ranges barely overlap: the chat LLM never exceeds 0.42, so there is no way to
+compare the two above that point at all. Any claim about "which is better calibrated" has to say
+*where*.
 
 ## 3. Cost and speed
 
@@ -56,17 +70,22 @@ question sheet, which is re-sent with every call,  trim the wording, not the dat
 | chat LLM | 61.2% | 0.7935 | 16.8% | 1.874x |
 | logistic regression (supervised) | 79.1% | 0.8417 | 26.0% | 2.894x |
 
-At a 9.0% base rate these numbers mostly measure where each model put its
-threshold. Jev flags 32% of people and
-the chat LLM flags 45%, so the LLM buys
-recall 84.2% against 70.8% and pays for it in precision. Compared at
-matched coverage the two are within 0.2 to 2 points at every level, and inside narrow age bands
-they are identical to two decimals. **They are tied on skill.** The trained logistic regression
-beats both, because it had 248,680 labelled examples and they had none.
+At a 9.0% base rate most of this table measures where each model put its
+threshold. Jev flags 32% of people,
+the chat LLM 45%. Bootstrapped
+properly, the chat LLM's **ranking** advantage is real (AUC difference +0.021, 95% CI
+[+0.011, +0.032]) but it is **too small to see at any single cut**: matched-coverage precision
+differences at 5/10/20/30% flagged are +2.8, -0.2, +0.3, +0.2 points, and every one of those CIs
+spans zero.
 
-One more caveat worth stating: age band alone scores AUC 0.7215. Both arms add about 0.05 of AUC
-on top of that and stop. There is not much learnable signal in 21 survey answers, which is the
-real explanation for why neither zero-shot model is impressive here.
+So the fair statement is that the chat LLM ranks slightly better across the whole ordering, and
+that a practitioner choosing a threshold would not notice. Both lose to the trained regression,
+which had 248,680 labelled examples against their none.
+
+The 20 non-age fields, when a model can weight them jointly, are worth **+0.1203 AUC** (age band
+alone 0.7215, all 21 fields 0.8417). Jev's zero-shot reading captures about 42% of that and the
+chat LLM about 60%. That ratio, not the three-way table, is the real measure of what zero-shot
+judgement buys you.
 
 ## 5. The reason is auditable
 
@@ -78,10 +97,12 @@ also good, but it is prose, and checking prose does not scale the way checking a
 
 ## What this does not say
 
-It does not say Jev is better than an LLM. It says they are different instruments, and on this
-task they were **equally skilled**: matched-coverage precision differs by 0.2 to 2 points at every
-level, and within narrow age bands their AUC is identical to two decimals. Jev is a judgement
-endpoint: one call, one typed answer, a reason code, no conversation, and a price per decision low
-enough to run over every row you have. An LLM is a generalist you steer with prompts, and here it
-was the better calibrated of the two. Both lost to a trained logistic regression that had a
-quarter of a million labels.
+It does not say Jev is better than an LLM. On this task the chat LLM ranked slightly better (a real
+but sub-detectable +0.021 AUC) and, more importantly, produced numbers that work as probabilities
+while Jev's did not (Brier skill -1.315 vs +0.087). Jev's case is operational: one call, one typed
+answer, a reason code that is machine-checkable, no prompt to drift, 2.8x cheaper and 2.5x faster.
+Both lost to a trained logistic regression that had a quarter of a million labels.
+
+The transferable lesson is not about either vendor. **A typed decision output is not the same thing
+as a calibrated probability, and a decision model is not calibrated just because it returns a
+number beside its label.** Test the calibration on your own task before you build a threshold on it.
