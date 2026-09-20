@@ -136,6 +136,52 @@ while the LLM's are usable, and both are mediocre next to a trained model.** Jev
 are operational, 2.8x cheaper and
 2.5x faster with a checkable reason code.
 
+## Was this even the right use case? Test v4 says no, and now I know why
+
+This is the question the whole benchmark should have started from. The diagnosis after the rigour
+review was that Jev failed because the task asked it to **estimate a calibrated probability of a
+rare event**, which is not what a selection model does. Every previous Jev success in this work has
+been a *selection* task: pick one option out of a defined list.
+
+So v4 tests the charitable version. Hand Jev the trained model's probability as a stated fact, and
+ask it only to **route** the respondent to a follow-up tier and **explain** the score. Same 5,000
+people, same answers. Run and control in `results/v4-usecase-test.md`.
+
+**Routing does separate risk, convincingly:**
+
+| tier Jev chose | n | share | actually positive | vs base rate |
+|---|---|---|---|---|
+| no_action | 337 | 6.7% | 1.2% | 0.13x |
+| lifestyle | 2,529 | 50.6% | 3.0% | 0.34x |
+| clinician_review | 1,941 | 38.8% | 15.4% | 1.72x |
+| urgent | 193 | 3.9% | 35.8% | 3.98x |
+
+A 30x spread, monotone, and the stated reason was verifiable **100.0%** of the time.
+
+**Then the control, which kills it.** Threshold the same handed probability into four bands at the
+*identical* proportions and compare:
+
+| | AUC of the four bands | spread, lowest to highest |
+|---|---|---|
+| the probability Jev was handed | **0.8417** | - |
+| naive thresholds of that probability | 0.7854 | 0.3% -> 43.5% (147x) |
+| **Jev's tiers** | **0.7383** | 1.2% -> 35.8% (30x) |
+
+Jev's routing is **worse than simply thresholding the number it was given**, and it moves the
+highest-risk people *out* of the top tier: the number's top 3.9% is 43.5% positive, Jev's "urgent"
+tier of the same size is 35.8% positive. It blurred the signal rather than sharpening it.
+
+**So the honest answer to "was this the wrong use case" is yes, and both halves were wrong:**
+the probability was an estimation task, and the reason was a lookup task. 100% of the reasons Jev
+named were genuinely present, which means it was reading off which factor the record already
+contained. That is a `GROUP BY`, not a judgement. There was no judgement left in the task for a
+decision model to add, which is why it added nothing.
+
+That also makes the failure predictable rather than surprising. Jev's own record in this work:
+97.5% selecting a hierarchy node, 96.5% on near-duplicate parts, 97.5% classifying tariff headings,
+86.8% on a placement audit. All **selection among plausible options**. Failing on a calibrated
+probability of a rare event is not an anomaly. It is the shape of the tool being used the wrong way.
+
 ## The decision contract matters as much as the model
 
 Same model, same 1,000 respondents, three ways of asking:
