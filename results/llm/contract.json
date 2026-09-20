@@ -1,0 +1,36 @@
+{
+ "risk_band": {
+  "type": "choice",
+  "instructions": "Using only the survey answers in the state, which band best describes the probability that THIS respondent has ever been told by a doctor that they had a heart attack or coronary heart disease? About one in eleven US adults in this survey have been told that. Answer with the band that matches the answers you were given.",
+  "criteria": {
+   "low": "Probability under 5 percent. No diagnosed cardiovascular condition and no more than one mild risk factor.",
+   "moderate": "Probability about 5 to 12 percent, close to the general adult rate. One or two risk factors present, or age 60 or over with otherwise unremarkable answers.",
+   "elevated": "Probability about 12 to 25 percent. Several risk factors acting together, for example high blood pressure plus high cholesterol, or diabetes, or a previous stroke.",
+   "high": "Probability above 25 percent. Multiple strong risk factors stacking up, or an existing cardiovascular condition such as a prior stroke at an older age."
+  }
+ },
+ "top_driver": {
+  "type": "choice",
+  "instructions": "Which single recorded factor most raises THIS respondent's probability? Choose only a factor that is actually recorded as present in the state.",
+  "criteria": {
+   "high_blood_pressure": "Recorded high blood pressure is the strongest risk factor actually present.",
+   "high_cholesterol": "Recorded high cholesterol is the strongest risk factor actually present.",
+   "smoking_history": "Having smoked at least 100 cigarettes is the strongest risk factor actually present.",
+   "diabetes": "Recorded diabetes is the strongest risk factor actually present.",
+   "obesity": "Body mass index of 30 or more is the strongest risk factor actually present.",
+   "physical_inactivity": "No physical activity in the past month is the strongest risk factor actually present.",
+   "age": "Age of 65 or over is the strongest risk factor actually present.",
+   "poor_self_rated_health": "Self-rated general health of fair or poor is the strongest risk factor actually present.",
+   "prior_stroke": "A recorded stroke is the strongest risk factor actually present.",
+   "none_clear": "No single recorded factor stands out; on the recorded answers this respondent looks unremarkable."
+  }
+ },
+ "modifiable_risk_present": {
+  "type": "noul",
+  "instructions": "Is at least one modifiable risk factor present that a lifestyle or treatment change could address? Count high blood pressure, high cholesterol, diabetes, smoking history, obesity (body mass index 30 or more), physical inactivity and heavy alcohol use."
+ },
+ "flag_for_followup": {
+  "type": "noul",
+  "instructions": "Should this respondent be flagged for a follow-up conversation with a clinician about their heart disease risk?"
+ }
+}

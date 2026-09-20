@@ -1,0 +1,13 @@
+data/
+*.xpt
+*.XPT
+*.zip
+cohort.parquet
+sample.parquet
+cohort_clean.parquet
+cases*.jsonl
+grid-cases.jsonl
+results/grid/
+*.log
+.venv*/
+__pycache__/
