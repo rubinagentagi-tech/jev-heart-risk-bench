@@ -32,7 +32,7 @@ Did the explanation stay honest?
   mean tier confidence: 0.735
   latency 0.383s   cost $0.2437 ($0.0487 per 1,000)
 
-wrote /home/rubin/jev-poc/use-cases/cardio/results/v4-router/results.json
+wrote 
 EXIT=0
 
 ---- control: is Jev adding anything, or re-encoding the number? ----

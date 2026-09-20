@@ -103,8 +103,12 @@ def worker(cases, out, key, model, qs):
 
 
 def main():
-    key = os.environ.get("TYPESAFE_API_KEY") or open(
-        os.path.expanduser("~/.hermes/state/typesafe_key")).read().strip()
+    key = os.environ.get("TYPESAFE_API_KEY")
+    if not key:
+        p = os.path.expanduser("~/.typesafe_key")
+        key = open(p).read().strip() if os.path.exists(p) else None
+    if not key:
+        sys.exit("set TYPESAFE_API_KEY")
     cases_in = [json.loads(l) for l in open(os.path.join(HERE, "cases.jsonl")) if l.strip()]
     sample = pd.read_parquet(os.path.join(HERE, "sample.parquet")).set_index("record_id")
     asm = sample.loc[[c["id"] for c in cases_in]]
@@ -200,7 +204,7 @@ def main():
 
     json.dump({"rows": good, "cost_usd": cost, "wall_s": round(wall, 1), "tiers": TIERS},
               open(os.path.join(outdir, "results.json"), "w"), indent=1)
-    print(f"\nwrote {outdir}/results.json")
+    print(f"\nwrote results/v4-router/results.json")
 
 
 if __name__ == "__main__":
